@@ -70,7 +70,13 @@ struct IndexGraph {
     std::vector<std::vector<unsigned>> final_graph_;
     DISTFUNC distance_ = utils::InverseInnerProductSIMD;
 
-    IndexGraph(const size_t dimension, const size_t n): dimension_(dimension), nd_(n) {}
+    IndexGraph(const size_t dimension, const size_t n): dimension_(dimension), nd_(n) {
+        if (dimension_ == 200) {
+            distance_ = utils::InnerProductFloatAVX512;
+        } else {
+            distance_ = utils::InnerProductFloatAVX512Dim20;
+        }
+    }
 
     void load_graph(const char* filename) {
         std::ifstream in(filename, std::ios::binary);
@@ -127,7 +133,8 @@ struct IndexGraph {
         out.write((char*)neighbor_len, 8);
         out.write((char*)node_size, 8);
         out.write((char*)page_num, 8);
-        out.write(opt_graph_, page_num * (1 * 1024 * 1024 * 1024));
+        // out.write(opt_graph_, page_num * (1 * 1024 * 1024 * 1024));
+        out.write(opt_graph_, node_size * nd_);
         out.close();
     }
 
@@ -149,7 +156,8 @@ struct IndexGraph {
         //     exit(1);
         // }
         opt_graph_ = (char*)malloc(node_size * nd_);
-        in.read(opt_graph_, page_num * (1 * 1024 * 1024 * 1024));
+        // in.read(opt_graph_, page_num * (1 * 1024 * 1024 * 1024));
+        in.read(opt_graph_, node_size * nd_);
         in.close();
     }
 

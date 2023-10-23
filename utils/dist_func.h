@@ -209,7 +209,7 @@ static float InnerProductFloatAVX512(const void *pVec1v, const void *pVec2v, con
         y128 = MaskedReadFloat(dim, pVec2);
         sum128 = _mm_fmadd_ps(x128, y128, sum128);
     }
-    return HsumFloat128(sum128);
+    return -HsumFloat128(sum128);
 
     // float *pVec1 = (float *) pVec1v;
     // float *pVec2 = (float *) pVec2v;
@@ -224,6 +224,47 @@ static float InnerProductFloatAVX512(const void *pVec1v, const void *pVec2v, con
     //     sum = _mm512_fmadd_ps(va, vb, sum);
     // }
     // return _mm512_reduce_add_ps(sum);
+}
+
+static float InnerProductFloatAVX512Dim20(const void *pVec1v, const void *pVec2v, const void *dim_ptr) {
+    float *pVec1 = (float *) pVec1v;
+    float *pVec2 = (float *) pVec2v;
+    // std::size_t dim = *((std::size_t *) dim_ptr);
+    std::size_t dim = 20;
+
+    __m512 x512, y512, diff512;
+    __m512 sum512 = _mm512_setzero_ps();
+
+    while (dim >= 16) {
+        x512 = _mm512_loadu_ps(pVec1); pVec1 += 16;
+        y512 = _mm512_loadu_ps(pVec2); pVec2 += 16;
+        sum512 = _mm512_fmadd_ps(x512, y512, sum512);
+        dim -= 16;
+    }
+    __m256 sum256 = _mm256_add_ps(_mm512_castps512_ps256(sum512), _mm512_extractf32x8_ps(sum512, 1));
+
+    if (dim>=8){
+        __m256 x256 = _mm256_loadu_ps(pVec1); pVec1 += 8;
+        __m256 y256 = _mm256_loadu_ps(pVec2); pVec2 += 8;
+        sum256 = _mm256_fmadd_ps(x256, y256, sum256);
+        dim -= 8;
+    }
+    __m128 sum128 = _mm_add_ps(_mm256_castps256_ps128(sum256), _mm256_extractf128_ps(sum256, 1));
+    __m128 x128, y128;
+
+    if (dim >= 4) {
+        x128 = _mm_loadu_ps(pVec1); pVec1 += 4;
+        y128 = _mm_loadu_ps(pVec2); pVec2 += 4;
+        sum128 = _mm_fmadd_ps(x128, y128, sum128);
+        dim -= 4;
+    }
+
+    if (dim > 0) {
+        x128 = MaskedReadFloat(dim, pVec1);
+        y128 = MaskedReadFloat(dim, pVec2);
+        sum128 = _mm_fmadd_ps(x128, y128, sum128);
+    }
+    return -HsumFloat128(sum128);
 }
 #endif // USE_AVX512
 
