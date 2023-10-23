@@ -112,7 +112,7 @@ void build_index(const char* dataset_fn, const char* hnsw_fn, const char* ivf_fn
     unsigned n, d;
     float* data = read_fbin<float>(dataset_fn, n, d);
     hnswlib::InnerProductSpace space(d);
-    hnswlib::HierarchicalNSW<float>* alg_hnsw = new hnswlib::HierarchicalNSW<float>(&space, n, M, ef);
+    hnswlib::HierarchicalNSW<float>* alg_hnsw = new hnswlib::HierarchicalNSW<float>(&space, n, data, M, ef);
     alg_hnsw->addPoint(data, 0);
 #pragma omp parallel for
     for (size_t i = 1; i < n; i++) {
