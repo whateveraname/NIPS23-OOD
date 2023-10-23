@@ -17,8 +17,8 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNDEBUG -fno-builtin-malloc -fno-builti
 add_definitions (-std=c++11 -O3 -lboost -march=native -Wall -DINFO -Wno-unused-variable -Wno-unused-function -Wno-reorder)
 
 # add_executable(search cpp/search.cpp)
-# target_link_libraries(search faiss_avx2 -ltcmalloc)
+# target_link_libraries(search faiss -ltcmalloc)
 
 add_subdirectory(pybind11)
 pybind11_add_module(graphood python/graphood.cpp)
-target_link_libraries(graphood faiss_avx2)
+target_link_libraries(graphood faiss)

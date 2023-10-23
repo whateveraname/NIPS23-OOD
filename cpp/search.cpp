@@ -31,7 +31,7 @@ void testOptSearch(unsigned nq, unsigned d, unsigned k, IndexGraph& nsg, float* 
     time.tuck("");
 #pragma omp parallel for
     for (unsigned i = 0; i < nq; i++) {
-        nsg.searchWithOptGraphRestart(query + i * d, topK, L, res[i].data(), labels.data() + i * nprobe, nprobe);
+        nsg.searchWithOptGraph(query + i * d, topK, L, res[i].data(), labels.data() + i * nprobe, nprobe);
     }
     time.tuck("optsearch done");
     float optrecall = 0;

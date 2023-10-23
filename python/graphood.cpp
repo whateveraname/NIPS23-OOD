@@ -41,7 +41,7 @@ public:
         }
 #pragma omp parallel for
         for (size_t i = 0; i < nq; i++) {
-            graph->searchWithOptGraphRestart(query + i * d, k, ef, I + i * k, labels.data() + i * nprobe, nprobe);
+            graph->searchWithOptGraph(query + i * d, k, ef, I + i * k, labels.data() + i * nprobe, nprobe);
         }
         py_I.resize({nq, k});
         return py_I;
