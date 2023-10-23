@@ -73,7 +73,9 @@ void build_index(const char* dataset_fn, const char* hnsw_fn, const char* ivf_fn
     IndexGraph graph(d, n);
     graph.load_graph(hnsw_fn);
     graph.optimizeGraph(data);
+    std::cout << "optimize done\n";
     graph.save(index_fn);
+    std::cout << "save done\n";
 }
 
 PYBIND11_MODULE(graphood, m) {
