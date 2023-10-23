@@ -129,10 +129,10 @@ struct IndexGraph {
 
     void save(const char* fn) {
         std::ofstream out(fn, std::ios::binary);
-        out.write((char*)data_len, 8);
-        out.write((char*)neighbor_len, 8);
-        out.write((char*)node_size, 8);
-        out.write((char*)page_num, 8);
+        out.write((char*)&data_len, 8);
+        out.write((char*)&neighbor_len, 8);
+        out.write((char*)&node_size, 8);
+        out.write((char*)&page_num, 8);
         // out.write(opt_graph_, page_num * (1 * 1024 * 1024 * 1024));
         out.write(opt_graph_, node_size * nd_);
         out.close();
