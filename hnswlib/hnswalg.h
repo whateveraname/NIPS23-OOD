@@ -251,7 +251,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
 
     inline char *getDataByInternalId(tableint internal_id) const {
         // return (data_level0_memory_ + internal_id * size_data_per_element_ + offsetData_);
-        return data_ + getExternalLabel(internal_id) * (*((size_t*)dist_func_param_));
+        return (char*)(data_ + getExternalLabel(internal_id) * (*((size_t*)dist_func_param_)));
     }
 
 
