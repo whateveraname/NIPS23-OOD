@@ -5,6 +5,56 @@
 #include "../index/IndexIVF.h"
 #include "../index/IndexGraph.h"
 
+#include <faiss/IndexPQ.h>
+#include <faiss/impl/ResultHandler.h>
+#include <faiss/utils/Heap.h>
+
+#include <mkl.h>
+
+void knn_inner_product1(const float *x, const float *y, size_t d, size_t nx, size_t ny, faiss::float_minheap_array_t *result) {
+    using RH = faiss::HeapResultHandler<faiss::CMin<float, int64_t>>;
+    RH res(nx, result->val, result->ids, result->k);
+    int bs_x = 4096;
+    int bs_y = 1024;
+    std::unique_ptr<float[]> ip_block(new float[bs_x * bs_y]);
+// #pragma omp parallel for
+    for (size_t i0 = 0; i0 < nx; i0 += bs_x) {
+        size_t i1 = i0 + bs_x;
+        if (i1 > nx)
+            i1 = nx;
+
+        res.begin_multiple(i0, i1);
+
+        for (size_t j0 = 0; j0 < ny; j0 += bs_y) {
+            size_t j1 = j0 + bs_y;
+            if (j1 > ny)
+                j1 = ny;
+            /* compute the actual dot products */
+            {
+                float one = 1, zero = 0;
+                int nyi = j1 - j0, nxi = i1 - i0, di = d;
+                cblas_sgemm(CblasRowMajor,
+                            CblasNoTrans,
+                            CblasTrans,
+                            nxi,
+                            nyi,
+                            di,
+                            one,
+                            x + i0 * d,
+                            di,
+                            y + j0 * d,
+                            di,
+                            zero,
+                            ip_block.get(),
+                            nyi);
+            }
+
+            res.add_results(j0, j1, ip_block.get());
+        }
+        res.end_multiple();
+    }
+}
+
 void testOptSearch(unsigned nq, unsigned d, unsigned k, IndexGraph& nsg, float* query, unsigned* gt, unsigned topK, unsigned L) {
     std::vector<std::vector<unsigned>> res(nq);
     for (unsigned i = 0; i < nq; i++) res[i].resize(topK);
@@ -22,7 +72,8 @@ void testOptSearch(unsigned nq, unsigned d, unsigned k, IndexGraph& nsg, float* 
     std::vector<int64_t> labels(nq * nprobe);
     std::vector<float> distances(nq * nprobe);
     faiss::float_minheap_array_t result = {size_t(nq), size_t(nprobe), labels.data(), distances.data()};
-    faiss::knn_inner_product(query, centroids, d, nq, cluster_num, &result, nullptr);
+    // faiss::knn_inner_product(query, centroids, d, nq, cluster_num, &result, nullptr);
+    knn_inner_product1(query, centroids, d, nq, cluster_num, &result);
     for (size_t i = 0; i < nq; i++) {
         for (size_t j = 0; j < nprobe; j++) {
             labels[i * nprobe + j] = represent_ids[labels[i * nprobe + j]];

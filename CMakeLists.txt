@@ -13,12 +13,16 @@ endif()
 
 add_subdirectory(faiss)
 
+set(ENV{MKLROOT} "/opt/intel/oneapi/mkl/latest")
+find_package(MKL CONFIG REQUIRED PATHS $ENV{MKLROOT})
+message(STATUS "${MKL_IMPORTED_TARGETS}")
+
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNDEBUG -fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free")
 add_definitions (-std=c++11 -O3 -lboost -march=native -Wall -DINFO -Wno-unused-variable -Wno-unused-function -Wno-reorder)
 
-# add_executable(search cpp/search.cpp)
-# target_link_libraries(search faiss -ltcmalloc)
+add_executable(search cpp/search.cpp)
+target_link_libraries(search faiss MKL::MKL)
 
 add_subdirectory(pybind11)
 pybind11_add_module(graphood python/graphood.cpp)
-target_link_libraries(graphood faiss)
+target_link_libraries(graphood faiss MKL::MKL)
