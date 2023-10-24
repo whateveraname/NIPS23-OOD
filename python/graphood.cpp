@@ -124,13 +124,13 @@ void build_index(const char* dataset_fn, const char* hnsw_fn, const char* ivf_fn
     in.close();
     int fd = open(dataset_fn, O_RDONLY);
     int len = lseek(fd,0,SEEK_END);
-    // float* data = (float*)mmap(NULL, len - 8, PROT_READ, MAP_PRIVATE, fd, 8);
     auto data = read_fbin<float>(dataset_fn, n, d);
     IndexIVF index(d, cluster_num);
     index.add(n, data);
     index.save(ivf_fn);
     log << "ivf build done\n";
-    munmap(data, len - 8);
+    // munmap(data, len - 8);
+    delete[] data;
     hnswlib::InnerProductSpace space(d);
     hnswlib::HierarchicalNSW<float>* alg_hnsw = new hnswlib::HierarchicalNSW<float>(&space, n, M, ef);
     alg_hnsw->addPoint(read_vector(fd, d, 0), 0);
