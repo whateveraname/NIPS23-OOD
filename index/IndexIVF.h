@@ -198,7 +198,6 @@ IndexIVF* load_ivf(const char* filename) {
     index->represent_ids.resize(cluster_num);
     in.read((char*)index->represent_ids.data(), cluster_num * sizeof(unsigned));
     in.close();
-    index->centroids = new float[cluster_num * d];
     for (size_t i = 0; i < cluster_num; i++) {
         memcpy(index->centroids + i * d, index->centroids_[i].data(), d * sizeof(float));
     }

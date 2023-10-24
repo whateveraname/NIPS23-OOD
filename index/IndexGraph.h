@@ -95,6 +95,7 @@ struct IndexGraph {
             tmp.resize(k);
             final_graph_.push_back(tmp);
         }
+        in.close();
     }
 
     void optimizeGraph(int fd) {

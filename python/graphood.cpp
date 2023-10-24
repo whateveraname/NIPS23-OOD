@@ -110,12 +110,18 @@ private:
 
 void build_index(const char* dataset_fn, const char* hnsw_fn, const char* ivf_fn, const char* index_fn, unsigned M, unsigned ef, unsigned cluster_num) {
     unsigned n, d;
-    float* data = read_fbin<float>(dataset_fn, n, d);
+    std::ifstream in(dataset_fn, std::ios::binary);
+    in.read((char*)&n, 4);
+    in.read((char*)&d, 4);
+    in.close();
+    int fd = open(dataset_fn, O_RDONLY);
+    int len = lseek(fd,0,SEEK_END);
+    float* data = (float*)mmap(NULL, len - 8, PROT_READ, MAP_PRIVATE, fd, 8);
+    // auto data = read_fbin<float>(dataset_fn, n, d);
     IndexIVF index(d, cluster_num);
     index.add(n, data);
     index.save(ivf_fn);
-    delete[] data;
-    int fd = open(dataset_fn, O_RDONLY);
+    munmap(data, len - 8);
     hnswlib::InnerProductSpace space(d);
     hnswlib::HierarchicalNSW<float>* alg_hnsw = new hnswlib::HierarchicalNSW<float>(&space, n, M, ef);
     alg_hnsw->addPoint(read_vector(fd, d, 0), 0);
@@ -131,6 +137,7 @@ void build_index(const char* dataset_fn, const char* hnsw_fn, const char* ivf_fn
     std::cout << "optimize done\n";
     graph.save(index_fn);
     std::cout << "save done\n";
+    close(fd);
 }
 
 PYBIND11_MODULE(graphood, m) {
