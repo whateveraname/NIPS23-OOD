@@ -46,7 +46,7 @@ struct IndexIVF {
 
         std::cout << "Bucket size: " << bucket_size << std::endl;
 
-#pragma omp parallel for
+// #pragma omp parallel for
         for (std::size_t i = 0; i < cluster_num; ++i) {
             std::cout << "1 " << bucket_size << std::endl;
             float *data_ptr = &data[i * bucket_size * d];
