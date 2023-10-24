@@ -97,27 +97,15 @@ struct IndexGraph {
         }
     }
 
-    void optimizeGraph(float* data) {
-        data_ = data;
+    void optimizeGraph(int fd) {
         data_len = (dimension_) * sizeof(float);
         neighbor_len = (width + 1) * sizeof(unsigned);
         node_size = data_len + neighbor_len;
         opt_graph_ = (char*)malloc(node_size * nd_);
-        // size_t HUGE_PAGE_SIZE = (1 * 1024 * 1024 * 1024);
-        // int fd = open("/var/lib/hugetlbfs/pagesize-1GB/my_huge_page", O_CREAT | O_RDWR, 0755);
-        // if (fd == -1) {
-        //     std::cerr << "Failed to open file for huge page\n";
-        //     exit(1);
-        // }
-        // page_num = node_size * nd_ / HUGE_PAGE_SIZE + (size_t)((node_size * nd_ % HUGE_PAGE_SIZE) != 0);
-        // opt_graph_ = (char*)mmap(nullptr, page_num * HUGE_PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-        // if ((void*)opt_graph_ == MAP_FAILED) {
-        //     std::cerr << "Failed to allocate huge page\n";
-        //     exit(1);
-        // }
         for (unsigned i = 0; i < nd_; i++) {
+            auto v = read_vector(fd, dimension_, i);
             char* cur_node_offset = opt_graph_ + i * node_size;
-            std::memcpy(cur_node_offset, data_ + i * dimension_, data_len);
+            std::memcpy(cur_node_offset, v.data(), data_len);
             cur_node_offset += data_len;
             unsigned k = final_graph_[i].size();
             std::memcpy(cur_node_offset, &k, sizeof(unsigned));
@@ -133,7 +121,6 @@ struct IndexGraph {
         out.write((char*)&neighbor_len, 8);
         out.write((char*)&node_size, 8);
         out.write((char*)&page_num, 8);
-        // out.write(opt_graph_, page_num * (1 * 1024 * 1024 * 1024));
         out.write(opt_graph_, node_size * nd_);
         out.close();
     }
@@ -144,19 +131,7 @@ struct IndexGraph {
         in.read((char*)&neighbor_len, 8);
         in.read((char*)&node_size, 8);
         in.read((char*)&page_num, 8);
-        // size_t HUGE_PAGE_SIZE = (1 * 1024 * 1024 * 1024);
-        // int fd = open("/var/lib/hugetlbfs/pagesize-1GB/my_huge_page", O_CREAT | O_RDWR, 0755);
-        // if (fd == -1) {
-        //     std::cerr << "Failed to open file for huge page\n";
-        //     exit(1);
-        // }
-        // opt_graph_ = (char*)mmap(nullptr, page_num * HUGE_PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-        // if ((void*)opt_graph_ == MAP_FAILED) {
-        //     std::cerr << "Failed to allocate huge page\n";
-        //     exit(1);
-        // }
         opt_graph_ = (char*)malloc(node_size * nd_);
-        // in.read(opt_graph_, page_num * (1 * 1024 * 1024 * 1024));
         in.read(opt_graph_, node_size * nd_);
         in.close();
     }

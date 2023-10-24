@@ -106,7 +106,6 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
     std::mutex deleted_elements_lock;  // lock for deleted_elements
     std::unordered_set<tableint> deleted_elements;  // contains internal ids of deleted elements
 
-    float* data_;
 
     HierarchicalNSW(SpaceInterface<dist_t> *s) {
     }
@@ -126,7 +125,6 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
     HierarchicalNSW(
         SpaceInterface<dist_t> *s,
         size_t max_elements,
-        float* data,
         size_t M = 16,
         size_t ef_construction = 200,
         size_t random_seed = 100,
@@ -148,9 +146,6 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
 
         level_generator_.seed(random_seed);
         update_probability_generator_.seed(random_seed + 1);
-
-        data_size_ = 0;
-        data_ = data;
 
         size_links_level0_ = maxM0_ * sizeof(tableint) + sizeof(linklistsizeint);
         size_data_per_element_ = size_links_level0_ + data_size_ + sizeof(labeltype);
@@ -250,8 +245,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
 
 
     inline char *getDataByInternalId(tableint internal_id) const {
-        // return (data_level0_memory_ + internal_id * size_data_per_element_ + offsetData_);
-        return (char*)(data_ + getExternalLabel(internal_id) * (*((size_t*)dist_func_param_)));
+        return (data_level0_memory_ + internal_id * size_data_per_element_ + offsetData_);
     }
 
 
@@ -1043,7 +1037,8 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
     * Adds point. Updates the point if it is already in the index.
     * If replacement of deleted elements is enabled: replaces previously deleted point if any, updating it with new point
     */
-    void addPoint(const void *data_point, labeltype label, bool replace_deleted = false) {
+    void addPoint(std::vector<float> data_v, labeltype label, bool replace_deleted = false) {
+        void* data_point = data_v.data();
         if ((allow_replace_deleted_ == false) && (replace_deleted == true)) {
             throw std::runtime_error("Replacement of deleted elements is disabled in constructor");
         }
@@ -1293,7 +1288,7 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
 
         // Initialisation of the data and label
         memcpy(getExternalLabeLp(cur_c), &label, sizeof(labeltype));
-        // memcpy(getDataByInternalId(cur_c), data_point, data_size_);
+        memcpy(getDataByInternalId(cur_c), data_point, data_size_);
 
         if (curlevel) {
             linkLists_[cur_c] = (char *) malloc(size_links_per_element_ * curlevel + 1);

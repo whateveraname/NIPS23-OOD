@@ -19,41 +19,26 @@ struct IndexIVF {
     unsigned cluster_num;
     std::vector<std::vector<unsigned>> inverted_list_;
     std::vector<std::vector<float>> centroids_;
-    std::vector<unsigned> id_map_;
-    std::vector<unsigned> id_table_;
-    std::vector<unsigned> reverse_id_map_;
     unsigned n_;
-    float* data_;
     float* centroids;
     DISTFUNC dist_;
     std::vector<unsigned> represent_ids;
 
     IndexIVF(unsigned d, unsigned cluster_num): d(d), cluster_num(cluster_num), inverted_list_(cluster_num), centroids_(cluster_num), represent_ids(cluster_num) {
         dist_ = utils::L2SqrSIMD;
-        data_ = nullptr;
-        centroids = nullptr;
+        centroids = new float[cluster_num * d];
     }
 
-    // ~IndexIVF() {
-    //     if (data_) delete[] data_;
-    //     if (centroids) delete[] centroids;
-    // }
+    ~IndexIVF() {
+        delete[] centroids;
+    }
 
     void add(unsigned n, float* data) {
         n_ = n;
-        id_map_.resize(n);
-        id_table_.resize(n);
-        reverse_id_map_.resize(n);
         kmeans(n, data, 20);
-        data_ = new float[n * d];
-        for (size_t i = 0; i < n; i++) {
-            memcpy(data_ + id_map_[i] * d, data + i * d, d * sizeof(float));
-        }
-        // build_hnsw();
     }
 
     void kmeans(unsigned n, float* data, unsigned kmeans_iter = 10) {
-        omp_set_num_threads(48);
         unsigned bucket_size = n / cluster_num;
         std::cout << "Bucket size: " << bucket_size << std::endl;
         std::vector<std::vector<float> > t_l2_centroid(cluster_num);
@@ -159,9 +144,6 @@ struct IndexIVF {
             if (t_ivf[i].size() == 0) continue;
             for (const auto &id: t_ivf[i]) {
                 inverted_list_[cluster_num_].push_back(id);
-                id_map_[id] = id_;
-                id_table_[id_] = id;
-                reverse_id_map_[id] = cluster_num_;
                 ++id_;
             }
             centroids_[cluster_num_].assign(t_l2_centroid[i].begin(), t_l2_centroid[i].end());
@@ -195,20 +177,9 @@ struct IndexIVF {
         out.write((char*)&d, sizeof(size_t));
         out.write((char*)&cluster_num, sizeof(unsigned));
         for (size_t i = 0; i < cluster_num; i++) {
-            unsigned size = inverted_list_[i].size();
-            out.write((char*)&size, sizeof(unsigned));
-            out.write((char*)inverted_list_[i].data(), size * sizeof(unsigned));      
-        }
-        for (size_t i = 0; i < cluster_num; i++) {
             out.write((char*)centroids_[i].data(), d * sizeof(float));
         }
-        unsigned n = id_map_.size();
-        out.write((char*)&n, sizeof(unsigned));
-        out.write((char*)id_map_.data(), n * sizeof(unsigned));
-        out.write((char*)id_table_.data(), n * sizeof(unsigned));
-        out.write((char*)reverse_id_map_.data(), n * sizeof(unsigned));
-        out.write((char*)represent_ids.data(), n * sizeof(unsigned));
-        out.write((char*)data_, n * d * sizeof(float));
+        out.write((char*)represent_ids.data(), cluster_num * sizeof(unsigned));
         out.close();
     }
 };
@@ -221,29 +192,11 @@ IndexIVF* load_ivf(const char* filename) {
     in.read((char*)&cluster_num, sizeof(unsigned));
     IndexIVF* index = new IndexIVF(d, cluster_num);
     for (size_t i = 0; i < cluster_num; i++) {
-        unsigned size;
-        in.read((char*)&size, sizeof(unsigned));
-        index->inverted_list_[i].resize(size);
-        in.read((char*)index->inverted_list_[i].data(), size * sizeof(unsigned));
-    }
-    for (size_t i = 0; i < cluster_num; i++) {
         index->centroids_[i].resize(d);
         in.read((char*)index->centroids_[i].data(), d * sizeof(float));
     }
-    unsigned n;
-    in.read((char*)&n, sizeof(unsigned));
-    index->n_ = n;
-    index->id_map_.resize(n);
-    in.read((char*)index->id_map_.data(), n * sizeof(unsigned));
-    index->id_table_.resize(n);
-    in.read((char*)index->id_table_.data(), n * sizeof(unsigned));
-    index->reverse_id_map_.resize(n);
-    in.read((char*)index->reverse_id_map_.data(), n * sizeof(unsigned));
-    index->represent_ids.resize(n);
-    in.read((char*)index->represent_ids.data(), n * sizeof(unsigned));
-    // index->data_ = new float[n * d];
-    // in.read((char*)index->data_, n * d * sizeof(float));
-    in.ignore(n * d * sizeof(float));
+    index->represent_ids.resize(cluster_num);
+    in.read((char*)index->represent_ids.data(), cluster_num * sizeof(unsigned));
     in.close();
     index->centroids = new float[cluster_num * d];
     for (size_t i = 0; i < cluster_num; i++) {

@@ -111,20 +111,23 @@ private:
 void build_index(const char* dataset_fn, const char* hnsw_fn, const char* ivf_fn, const char* index_fn, unsigned M, unsigned ef, unsigned cluster_num) {
     unsigned n, d;
     float* data = read_fbin<float>(dataset_fn, n, d);
-    hnswlib::InnerProductSpace space(d);
-    hnswlib::HierarchicalNSW<float>* alg_hnsw = new hnswlib::HierarchicalNSW<float>(&space, n, data, M, ef);
-    alg_hnsw->addPoint(data, 0);
-// #pragma omp parallel for
-    for (size_t i = 1; i < n; i++) {
-        alg_hnsw->addPoint(data + i * d, i);
-    }
-    alg_hnsw->save_graph(hnsw_fn);
     IndexIVF index(d, cluster_num);
     index.add(n, data);
     index.save(ivf_fn);
+    delete[] data;
+    int fd = open(dataset_fn, O_RDONLY);
+    hnswlib::InnerProductSpace space(d);
+    hnswlib::HierarchicalNSW<float>* alg_hnsw = new hnswlib::HierarchicalNSW<float>(&space, n, M, ef);
+    alg_hnsw->addPoint(read_vector(fd, d, 0), 0);
+#pragma omp parallel for
+    for (size_t i = 1; i < n; i++) {
+        alg_hnsw->addPoint(read_vector(fd, d, i), i);
+    }
+    alg_hnsw->save_graph(hnsw_fn);
+    delete alg_hnsw;
     IndexGraph graph(d, n);
     graph.load_graph(hnsw_fn);
-    graph.optimizeGraph(data);
+    graph.optimizeGraph(fd);
     std::cout << "optimize done\n";
     graph.save(index_fn);
     std::cout << "save done\n";

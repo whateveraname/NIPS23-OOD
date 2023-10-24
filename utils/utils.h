@@ -34,3 +34,9 @@ T* read_fbin(const char* filename, unsigned& n, unsigned& d) {
     in.close();
     return data;
 }
+
+std::vector<float> read_vector(int fd, unsigned d, unsigned i) {
+    std::vector<float> v(d);
+    pread(fd, v.data(), d * 4, 8 + i * d * 4);
+    return v;
+}

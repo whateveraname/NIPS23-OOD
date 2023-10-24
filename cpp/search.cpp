@@ -107,6 +107,15 @@ int main() {
     float* data = read_fbin<float>("/home/yuxiang/NeurIPS23/big-ann-benchmarks-main/data/text2image1B/base.1B.fbin.crop_nb_10000000", n, d);
     float* query = read_fbin<float>("/home/yuxiang/NeurIPS23/big-ann-benchmarks-main/data/text2image1B/query.public.100K.fbin", nq, d);
     unsigned* gt = read_fbin<unsigned>("/home/yuxiang/NeurIPS23/big-ann-benchmarks-main/data/text2image1B/text2image-10M", nq, k);
+
+    hnswlib::InnerProductSpace space(d);
+    hnswlib::HierarchicalNSW<float>* alg_hnsw = new hnswlib::HierarchicalNSW<float>(&space, n, 20, 1200);
+    alg_hnsw->addPoint(data, 0);
+#pragma omp parallel for
+    for (size_t i = 1; i < n; i++) {
+        alg_hnsw->addPoint(data + i * d, i);
+    }
+
     IndexGraph nsg(d, n);
     nsg.load_graph("hnsw.graph");
     nsg.optimizeGraph(data);
