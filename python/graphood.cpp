@@ -109,6 +109,7 @@ private:
 };
 
 void build_index(const char* dataset_fn, const char* hnsw_fn, const char* ivf_fn, const char* index_fn, unsigned M, unsigned ef, unsigned cluster_num) {
+    // std::ofstream log("");
     unsigned n, d;
     std::ifstream in(dataset_fn, std::ios::binary);
     in.read((char*)&n, 4);

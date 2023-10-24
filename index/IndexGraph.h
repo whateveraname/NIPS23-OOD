@@ -68,14 +68,14 @@ struct IndexGraph {
     char* opt_graph_;
     size_t page_num;
     std::vector<std::vector<unsigned>> final_graph_;
-    DISTFUNC distance_ = utils::InverseInnerProductSIMD;
+    DISTFUNC distance_ = utils::InverseInnerProduct;
 
     IndexGraph(const size_t dimension, const size_t n): dimension_(dimension), nd_(n) {
-        if (dimension == 200) {
-            distance_ = utils::InnerProductFloatAVX512;
-        } else {
-            distance_ = utils::InnerProductFloatAVX512Dim20;
-        }
+        // if (dimension == 200) {
+        //     distance_ = utils::InnerProductFloatAVX512;
+        // } else {
+        //     distance_ = utils::InnerProductFloatAVX512Dim20;
+        // }
     }
 
     void load_graph(const char* filename) {

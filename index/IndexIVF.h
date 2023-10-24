@@ -25,7 +25,7 @@ struct IndexIVF {
     std::vector<unsigned> represent_ids;
 
     IndexIVF(unsigned d, unsigned cluster_num): d(d), cluster_num(cluster_num), inverted_list_(cluster_num), centroids_(cluster_num), represent_ids(cluster_num) {
-        dist_ = utils::L2SqrSIMD;
+        dist_ = utils::L2Sqr;
         centroids = new float[cluster_num * d];
     }
 
