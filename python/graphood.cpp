@@ -62,12 +62,17 @@ void knn_inner_product1(const float *x, const float *y, size_t d, size_t nx, siz
 class IndexGraphOOD {
 public:
     IndexGraphOOD(unsigned d, unsigned n, const char* index_fn, const char* ivf_fn): d(d) {
+        std::ofstream log("/home/app/data/indices/ood/final/Text2Image1B-10000000/log1");
+        log << "into constructor\n";
         graph = new IndexGraph(d, n);
         graph->load(index_fn);
+        log << "load graph\n";
         ivf = load_ivf(ivf_fn);
         centroids = ivf->centroids;
         cluster_num = ivf->cluster_num;
         represent_ids = ivf->represent_ids;
+        log << "load ivf\n";
+        log.close();
     }
 
     py::array_t<unsigned> batch_search(unsigned nq, py::array_t<float> query_, unsigned k, unsigned ef, unsigned nprobe) {
@@ -109,7 +114,7 @@ private:
 };
 
 void build_index(const char* dataset_fn, const char* hnsw_fn, const char* ivf_fn, const char* index_fn, unsigned M, unsigned ef, unsigned cluster_num) {
-    // std::ofstream log("");
+    std::ofstream log("/home/app/data/indices/ood/final/Text2Image1B-10000000/log");
     unsigned n, d;
     std::ifstream in(dataset_fn, std::ios::binary);
     in.read((char*)&n, 4);
@@ -122,6 +127,7 @@ void build_index(const char* dataset_fn, const char* hnsw_fn, const char* ivf_fn
     IndexIVF index(d, cluster_num);
     index.add(n, data);
     index.save(ivf_fn);
+    log << "ivf build done\n";
     munmap(data, len - 8);
     hnswlib::InnerProductSpace space(d);
     hnswlib::HierarchicalNSW<float>* alg_hnsw = new hnswlib::HierarchicalNSW<float>(&space, n, M, ef);
@@ -131,13 +137,16 @@ void build_index(const char* dataset_fn, const char* hnsw_fn, const char* ivf_fn
         alg_hnsw->addPoint(read_vector(fd, d, i), i);
     }
     alg_hnsw->save_graph(hnsw_fn);
+    log << "hnsw build done\n";
     delete alg_hnsw;
     IndexGraph graph(d, n);
     graph.load_graph(hnsw_fn);
     graph.optimizeGraph(fd);
     std::cout << "optimize done\n";
     graph.save(index_fn);
+    log << "graph build done\n";
     std::cout << "save done\n";
+    log.close();
     close(fd);
 }
 
