@@ -48,9 +48,9 @@ struct IndexIVF {
 
 // #pragma omp parallel for
         for (std::size_t i = 0; i < cluster_num; ++i) {
-            std::cout << "1 " << bucket_size << std::endl;
+            std::cout << "1 " << i << std::endl;
             float *data_ptr = &data[i * bucket_size * d];
-            std::cout << "2 " << bucket_size << std::endl;
+            std::cout << "2 " << i << std::endl;
             t_l2_centroid[i].assign(data_ptr, data_ptr+d);
         }
 
