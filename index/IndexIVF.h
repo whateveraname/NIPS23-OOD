@@ -25,7 +25,7 @@ struct IndexIVF {
     std::vector<unsigned> represent_ids;
 
     IndexIVF(unsigned d, unsigned cluster_num): d(d), cluster_num(cluster_num), inverted_list_(cluster_num), centroids_(cluster_num), represent_ids(cluster_num) {
-        dist_ = utils::L2Sqr;
+        dist_ = utils::L2SqrFloatAVX512;
         centroids = new float[cluster_num * d];
     }
 
@@ -44,17 +44,12 @@ struct IndexIVF {
         std::vector<std::vector<float> > t_l2_centroid(cluster_num);
         std::vector<std::vector<size_t>> t_ivf(cluster_num);
 
-        std::cout << "Bucket size: " << bucket_size << std::endl;
 
-// #pragma omp parallel for
+#pragma omp parallel for
         for (std::size_t i = 0; i < cluster_num; ++i) {
-            std::cout << "1 " << i << std::endl;
             float *data_ptr = &data[i * bucket_size * d];
-            std::cout << "2 " << i << std::endl;
             t_l2_centroid[i].assign(data_ptr, data_ptr+d);
         }
-
-        std::cout << "Bucket size: " << bucket_size << std::endl;
 
         std::vector<bool> centroid_empty(cluster_num, false);
         float err = std::numeric_limits<float>::max();

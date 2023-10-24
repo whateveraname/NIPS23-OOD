@@ -64,14 +64,17 @@ public:
     IndexGraphOOD(unsigned d, unsigned n, const char* index_fn, const char* ivf_fn): d(d) {
         std::ofstream log("/home/app/data/indices/ood/final/Text2Image1B-10000000/log1");
         log << "into constructor\n";
+        log.flush();
         graph = new IndexGraph(d, n);
         graph->load(index_fn);
         log << "load graph\n";
+        log.flush();
         ivf = load_ivf(ivf_fn);
         centroids = ivf->centroids;
         cluster_num = ivf->cluster_num;
         represent_ids = ivf->represent_ids;
         log << "load ivf\n";
+        log.flush();
         log.close();
     }
 
@@ -115,7 +118,7 @@ private:
 
 void build_index(const char* dataset_fn, const char* hnsw_fn, const char* ivf_fn, const char* index_fn, unsigned M, unsigned ef, unsigned cluster_num) {
     std::ofstream log("/home/app/data/indices/ood/final/Text2Image1B-10000000/log");
-    log.write("into build\n", 12);
+    log << "into build\n";
     log.flush();
     unsigned n, d;
     std::ifstream in(dataset_fn, std::ios::binary);
@@ -129,6 +132,7 @@ void build_index(const char* dataset_fn, const char* hnsw_fn, const char* ivf_fn
     index.add(n, data);
     index.save(ivf_fn);
     log << "ivf build done\n";
+    log.flush();
     // munmap(data, len - 8);
     delete[] data;
     hnswlib::InnerProductSpace space(d);
@@ -140,6 +144,7 @@ void build_index(const char* dataset_fn, const char* hnsw_fn, const char* ivf_fn
     }
     alg_hnsw->save_graph(hnsw_fn);
     log << "hnsw build done\n";
+    log.flush();
     delete alg_hnsw;
     IndexGraph graph(d, n);
     graph.load_graph(hnsw_fn);
