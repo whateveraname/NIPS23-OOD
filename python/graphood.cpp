@@ -116,6 +116,7 @@ private:
 void build_index(const char* dataset_fn, const char* hnsw_fn, const char* ivf_fn, const char* index_fn, unsigned M, unsigned ef, unsigned cluster_num) {
     std::ofstream log("/home/app/data/indices/ood/final/Text2Image1B-10000000/log");
     log.write("into build\n", 12);
+    log.flush();
     unsigned n, d;
     std::ifstream in(dataset_fn, std::ios::binary);
     in.read((char*)&n, 4);
