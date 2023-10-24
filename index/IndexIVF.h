@@ -35,7 +35,7 @@ struct IndexIVF {
 
     void add(unsigned n, float* data) {
         n_ = n;
-        kmeans(n, data, 20);
+        kmeans(n, data, 2);
     }
 
     void kmeans(unsigned n, float* data, unsigned kmeans_iter = 10) {
