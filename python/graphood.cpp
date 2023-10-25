@@ -37,6 +37,7 @@ void knn_inner_product1(const float *x, const float *y, size_t d, size_t nx, siz
             {
                 float one = 1, zero = 0;
                 int nyi = j1 - j0, nxi = i1 - i0, di = d;
+                mkl_set_num_threads(1);
                 cblas_sgemm(CblasRowMajor,
                             CblasNoTrans,
                             CblasTrans,
@@ -91,7 +92,6 @@ public:
         // faiss::knn_inner_product(query, centroids, d, nq, cluster_num, &res, nullptr);
         Timer timer;
         timer.tick();
-        mkl_set_num_threads(1);
         knn_inner_product1(query, centroids, d, nq, cluster_num, &res);
         for (size_t i = 0; i < nq; i++) {
             for (size_t j = 0; j < nprobe; j++) {
