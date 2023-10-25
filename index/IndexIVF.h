@@ -261,6 +261,7 @@ struct IndexIVF2Level {
             represent_ids[i].resize(l2_cluster_nums[i]);
             in.read((char*)represent_ids[i].data(), l2_cluster_nums[i] * 4);
         }
+        in.close();
     }
 
     void search(float* query, unsigned nq, std::vector<int64_t>& eps, unsigned nprobe) {

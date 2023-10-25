@@ -46,8 +46,6 @@ private:
     unsigned d;
     IndexGraph *graph;
     IndexIVF2Level ivf;
-    unsigned cluster_num;
-    std::vector<unsigned> represent_ids;
 };
 
 void build_index(const char* dataset_fn, const char* hnsw_fn, const char* ivf_fn, const char* index_fn, unsigned M, unsigned ef, unsigned cluster_num) {
@@ -57,6 +55,7 @@ void build_index(const char* dataset_fn, const char* hnsw_fn, const char* ivf_fn
     IndexIVF2Level index;
     index.add(n, d, data);
     index.save(ivf_fn);
+    std::cout << "built ivf\n";
     delete[] data;
     hnswlib::InnerProductSpace space(d);
     hnswlib::HierarchicalNSW<float>* alg_hnsw = new hnswlib::HierarchicalNSW<float>(&space, n, M, ef);
@@ -66,6 +65,7 @@ void build_index(const char* dataset_fn, const char* hnsw_fn, const char* ivf_fn
         alg_hnsw->addPoint(read_vector(fd, d, i), i);
     }
     alg_hnsw->save_graph(hnsw_fn);
+    std::cout << "built hnsw\n";
     delete alg_hnsw;
     IndexGraph graph(d, n);
     graph.load_graph(hnsw_fn);
