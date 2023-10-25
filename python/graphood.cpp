@@ -91,6 +91,7 @@ public:
         // faiss::knn_inner_product(query, centroids, d, nq, cluster_num, &res, nullptr);
         Timer timer;
         timer.tick();
+        mkl_set_num_threads(1);
         knn_inner_product1(query, centroids, d, nq, cluster_num, &res);
         for (size_t i = 0; i < nq; i++) {
             for (size_t j = 0; j < nprobe; j++) {
