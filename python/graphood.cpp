@@ -62,24 +62,24 @@ void knn_inner_product1(const float *x, const float *y, size_t d, size_t nx, siz
 class IndexGraphOOD {
 public:
     IndexGraphOOD(unsigned d, unsigned n, const char* index_fn, const char* ivf_fn): d(d) {
-        std::ofstream log("/home/app/data/indices/ood/final/Text2Image1B-10000000/log1");
-        log << "into constructor\n";
-        log.flush();
+        // std::ofstream log("/home/app/data/indices/ood/final/Text2Image1B-10000000/log1");
+        // log << "into constructor\n";
+        // log.flush();
         graph = new IndexGraph(d, n);
         graph->load(index_fn);
-        log << "load graph\n";
-        log.flush();
+        // log << "load graph\n";
+        // log.flush();
         ivf = load_ivf(ivf_fn);
         centroids = ivf->centroids;
         cluster_num = ivf->cluster_num;
         represent_ids = ivf->represent_ids;
-        log << "load ivf\n";
-        log.flush();
-        log.close();
+        // log << "load ivf\n";
+        // log.flush();
+        // log.close();
     }
 
     py::array_t<unsigned> batch_search(unsigned nq, py::array_t<float> query_, unsigned k, unsigned ef, unsigned nprobe) {
-        // omp_set_num_threads(8);
+        omp_set_num_threads(8);
         py::buffer_info buf_info = query_.request();
         float* query = (float*)buf_info.ptr;
         auto py_I = py::array_t<unsigned>(nq * k);
@@ -117,9 +117,9 @@ private:
 };
 
 void build_index(const char* dataset_fn, const char* hnsw_fn, const char* ivf_fn, const char* index_fn, unsigned M, unsigned ef, unsigned cluster_num) {
-    std::ofstream log("/home/app/data/indices/ood/final/Text2Image1B-10000000/log");
-    log << "into build\n";
-    log.flush();
+    // std::ofstream log("/home/app/data/indices/ood/final/Text2Image1B-10000000/log");
+    // log << "into build\n";
+    // log.flush();
     unsigned n, d;
     std::ifstream in(dataset_fn, std::ios::binary);
     in.read((char*)&n, 4);
@@ -131,8 +131,8 @@ void build_index(const char* dataset_fn, const char* hnsw_fn, const char* ivf_fn
     IndexIVF index(d, cluster_num);
     index.add(n, data);
     index.save(ivf_fn);
-    log << "ivf build done\n";
-    log.flush();
+    // log << "ivf build done\n";
+    // log.flush();
     // munmap(data, len - 8);
     delete[] data;
     hnswlib::InnerProductSpace space(d);
@@ -143,17 +143,17 @@ void build_index(const char* dataset_fn, const char* hnsw_fn, const char* ivf_fn
         alg_hnsw->addPoint(read_vector(fd, d, i), i);
     }
     alg_hnsw->save_graph(hnsw_fn);
-    log << "hnsw build done\n";
-    log.flush();
+    // log << "hnsw build done\n";
+    // log.flush();
     delete alg_hnsw;
     IndexGraph graph(d, n);
     graph.load_graph(hnsw_fn);
     graph.optimizeGraph(fd);
     std::cout << "optimize done\n";
     graph.save(index_fn);
-    log << "graph build done\n";
+    // log << "graph build done\n";
     std::cout << "save done\n";
-    log.close();
+    // log.close();
     close(fd);
 }
 
