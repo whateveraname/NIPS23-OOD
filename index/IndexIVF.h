@@ -410,6 +410,7 @@ struct IndexIVF2Level {
                 avg_err += err_clusters[i];
             }
             avg_err /= cluster_num;
+            kmeans_iter--;
             // std::cout << "iter: " << kmeans_iter-- << ", avg err: " << avg_err << std::endl;
         }
 
