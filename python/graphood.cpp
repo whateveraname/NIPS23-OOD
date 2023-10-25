@@ -21,7 +21,7 @@ void knn_inner_product1(const float *x, const float *y, size_t d, size_t nx, siz
     int bs_x = 4096;
     int bs_y = 1024;
     std::unique_ptr<float[]> ip_block(new float[bs_x * bs_y]);
-#pragma omp parallel for
+// #pragma omp parallel for
     for (size_t i0 = 0; i0 < nx; i0 += bs_x) {
         size_t i1 = i0 + bs_x;
         if (i1 > nx)
