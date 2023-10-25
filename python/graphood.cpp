@@ -18,8 +18,7 @@ public:
     IndexGraphOOD(unsigned d, unsigned n, const char* index_fn, const char* ivf_fn): d(d) {
         graph = new IndexGraph(d, n);
         graph->load(index_fn);
-        ivf = new IndexIVF2Level();
-        ivf->load(ivf_fn);
+        ivf.load(ivf_fn);
     }
 
     py::array_t<unsigned> batch_search(unsigned nq, py::array_t<float> query_, unsigned k, unsigned ef, unsigned nprobe) {
@@ -32,7 +31,7 @@ public:
         std::vector<int64_t> labels(nq * nprobe);
         Timer timer;
         timer.tick();
-        ivf->search(query, nq, labels, nprobe);
+        ivf.search(query, nq, labels, nprobe);
         timer.tuck("");
 #pragma omp parallel for
         for (size_t i = 0; i < nq; i++) {
@@ -46,7 +45,7 @@ public:
 private:
     unsigned d;
     IndexGraph *graph;
-    IndexIVF2Level *ivf;
+    IndexIVF2Level ivf;
 };
 
 void build_index(const char* dataset_fn, const char* hnsw_fn, const char* ivf_fn, const char* index_fn, unsigned M, unsigned ef, unsigned cluster_num) {
