@@ -46,7 +46,6 @@ private:
     unsigned d;
     IndexGraph *graph;
     IndexIVF2Level ivf;
-    float* centroids;
     unsigned cluster_num;
     std::vector<unsigned> represent_ids;
 };

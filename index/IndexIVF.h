@@ -265,19 +265,22 @@ struct IndexIVF2Level {
 
     void search(float* query, unsigned nq, std::vector<int64_t>& eps, unsigned nprobe) {
         auto dfunc = (d == 200 ? utils::InnerProductFloatAVX512 : utils::InnerProductFloatAVX512Dim20);
-#pragma omp parallel for
+#pragma omp parallel for num_threads(8)
         for (size_t i = 0; i < nq; i++) {
             std::priority_queue<std::pair<float, unsigned>> queue;
             std::vector<std::pair<float, unsigned>> result;
             for (size_t j = 0; j < l1_cluster_num; j++) {
                 queue.emplace(-dfunc(query + i * d, l1_centroids[j].data(), NULL), j);
             }
-            for (size_t j = 0; j < 3; j++) {
+            auto sum = 0, j = 0;
+            while (sum < nprobe && j < 3) {
                 auto cid = queue.top().second;
                 queue.pop();
                 for (size_t k = 0; k < l2_cluster_nums[cid]; k++) {
                     result.emplace_back(dfunc(query + i * d, l2_centroids[cid][k].data(), NULL), represent_ids[cid][k]);
                 }
+                sum += l2_cluster_nums[cid];
+                j++;
             }
             std::sort(result.begin(), result.end());
             for (size_t j = 0; j < nprobe; j++) {
@@ -325,7 +328,7 @@ struct IndexIVF2Level {
 
     void kmeans(unsigned n, float* data, unsigned cluster_num, std::vector<std::vector<unsigned>>& inverted_list, std::vector<std::vector<float>>& centroids, unsigned kmeans_iter = 10) {
         unsigned bucket_size = n / cluster_num;
-        std::cout << "Bucket size: " << bucket_size << std::endl;
+        // std::cout << "Bucket size: " << bucket_size << std::endl;
         std::vector<std::vector<float> > t_l2_centroid(cluster_num);
         std::vector<std::vector<size_t>> t_ivf(cluster_num);
 
@@ -338,7 +341,7 @@ struct IndexIVF2Level {
         std::vector<bool> centroid_empty(cluster_num, false);
         float err = std::numeric_limits<float>::max();
         while (kmeans_iter) {
-            std::cout << "Iter: " << kmeans_iter << std::endl;
+            // std::cout << "Iter: " << kmeans_iter << std::endl;
             std::vector<unsigned> cluster_id(n);
 
 #pragma omp parallel for
@@ -355,7 +358,7 @@ struct IndexIVF2Level {
                     }
                 }
             }
-            std::cout << "Iter: " << kmeans_iter << ", cluster assign" << std::endl;
+            // std::cout << "Iter: " << kmeans_iter << ", cluster assign" << std::endl;
 
 #pragma omp parallel for
             for (std::size_t i = 0; i < cluster_num; ++i) {
@@ -366,7 +369,7 @@ struct IndexIVF2Level {
                 t_ivf[cluster_id[i]].push_back(i);
             }
 
-            std::cout << t_ivf[0].size() << "\n";
+            // std::cout << t_ivf[0].size() << "\n";
 
 #pragma omp parallel for
             for (std::size_t i = 0; i < cluster_num; ++i) {
@@ -383,11 +386,11 @@ struct IndexIVF2Level {
                         t_l2_centroid[i][j] /= t_ivf[i].size();
                     }
                 } else {
-                    // std::cout << "!!!!!!   Empty cluster: " << i  << "  !!!!!!!!!!!!!!!!!!"<< std::endl;
+                    // // std::cout << "!!!!!!   Empty cluster: " << i  << "  !!!!!!!!!!!!!!!!!!"<< std::endl;
                     centroid_empty[i] = true;
                 }
             }
-            std::cout << "Recompute centroid" << std::endl;
+            // std::cout << "Recompute centroid" << std::endl;
 
             std::vector<float> err_clusters(cluster_num, 0);
 #pragma omp parallel for
@@ -406,7 +409,7 @@ struct IndexIVF2Level {
                 avg_err += err_clusters[i];
             }
             avg_err /= cluster_num;
-            std::cout << "iter: " << kmeans_iter-- << ", avg err: " << avg_err << std::endl;
+            // std::cout << "iter: " << kmeans_iter-- << ", avg err: " << avg_err << std::endl;
         }
 
         for (std::size_t i=0; i<cluster_num; ++i) {
