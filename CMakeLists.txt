@@ -11,11 +11,11 @@ else()
     message(FATAL_ERROR "no OpenMP support")
 endif()
 
-add_subdirectory(faiss)
+# add_subdirectory(faiss)
 
-set(ENV{MKLROOT} "/opt/intel/oneapi/mkl/latest")
-find_package(MKL CONFIG REQUIRED PATHS $ENV{MKLROOT})
-message(STATUS "${MKL_IMPORTED_TARGETS}")
+# set(ENV{MKLROOT} "/opt/intel/oneapi/mkl/latest")
+# find_package(MKL CONFIG REQUIRED PATHS $ENV{MKLROOT})
+# message(STATUS "${MKL_IMPORTED_TARGETS}")
 
 # add_compile_options(-fsanitize=address) 
 # add_link_options(-fsanitize=address)
@@ -28,4 +28,4 @@ add_definitions (-std=c++11 -O3 -lboost -march=native -Wall -DINFO -Wno-unused-v
 
 add_subdirectory(pybind11)
 pybind11_add_module(graphood python/graphood.cpp)
-target_link_libraries(graphood faiss MKL::MKL)
+# target_link_libraries(graphood faiss)

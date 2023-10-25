@@ -40,3 +40,7 @@ std::vector<float> read_vector(int fd, unsigned d, unsigned i) {
     pread(fd, v.data(), d * 4, 8 + (size_t)i * (size_t)d * 4);
     return v;
 }
+
+size_t div_round_up(size_t x, size_t y) {
+    return (x / y) + static_cast<size_t>((x % y) != 0);
+}

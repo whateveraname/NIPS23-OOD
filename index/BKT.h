@@ -31,9 +31,9 @@ struct BKTNode
     BKTNode(unsigned cid = -1) : centerid(cid), childStart(-1), childEnd(-1) {}
 };
 
-struct KmeansArgs {
-    using DISTFUNC = float (*)(const void *, const void *, const void *);
+using DISTFUNC = float (*)(const void *, const void *, const void *);
 
+struct KmeansArgs {
     int _K;
     int _DK;
     size_t _D;
@@ -570,74 +570,20 @@ public:
     // }
 
     template <typename T>
-    void InitSearchTrees(const float* data, std::function<float(const T*, const T*, size_t)> fComputeDistance, const float* p_query, COMMON::WorkSpace &p_space) const
+    void SearchTrees(const float* data, DISTFUNC fComputeDistance, const float* p_query, const int nprobe) const
     {
+        using queue = std::priority_queue<std::pair<float, unsigned>>;
         for (char i = 0; i < m_iTreeNumber; i++) {
             const BKTNode& node = m_pTreeRoots[m_pTreeStart[i]];
             if (node.childStart < 0) {
                 p_space.m_SPTQueue.insert(NodeDistPair(m_pTreeStart[i], fComputeDistance(p_query, data[node.centerid], data.C())));
-            } else if (m_bfs) {
-                float FactorQ = 1.1f;
-                int MaxBFSNodes = 100;
-                p_space.m_currBSPTQueue.Resize(MaxBFSNodes); p_space.m_nextBSPTQueue.Resize(MaxBFSNodes);
-                Heap<NodeDistPair>* p_curr = &p_space.m_currBSPTQueue, * p_next = &p_space.m_nextBSPTQueue;
-                
-                p_curr->Top().distance = 1e9;
-                for (unsigned begin = node.childStart; begin < node.childEnd; begin++) {
-                    unsigned index = m_pTreeRoots[begin].centerid;
-                    float dist = fComputeDistance(p_query, data[index], data.C());
-                    if (dist <= FactorQ * p_curr->Top().distance && p_curr->size() < MaxBFSNodes) {
-                        p_curr->insert(NodeDistPair(begin, dist));
-                    }
-                    else {
-                        p_space.m_SPTQueue.insert(NodeDistPair(begin, dist));
-                    }
-                }
-
-                for (int level = 1; level <= m_bfs; level++) {
-                    p_next->Top().distance = 1e9;
-                    while (!p_curr->empty()) {
-                        NodeDistPair tmp = p_curr->pop();
-                        const BKTNode& tnode = m_pTreeRoots[tmp.node];
-                        if (tnode.childStart < 0) {
-                            p_space.m_SPTQueue.insert(tmp);
-                        }
-                        else {
-                            if (!p_space.CheckAndSet(tnode.centerid)) {
-                                p_space.m_NGQueue.insert(NodeDistPair(tnode.centerid, tmp.distance));
-                            }
-                            for (unsigned begin = tnode.childStart; begin < tnode.childEnd; begin++) {
-                                unsigned index = m_pTreeRoots[begin].centerid;
-                                float dist = fComputeDistance(p_query, data[index], data.C());
-                                if (dist <= FactorQ * p_next->Top().distance && p_next->size() < MaxBFSNodes) {
-                                    p_next->insert(NodeDistPair(begin, dist));
-                                }
-                                else {
-                                    p_space.m_SPTQueue.insert(NodeDistPair(begin, dist));
-                                }
-                            }
-                        }
-                    }
-                    std::swap(p_curr, p_next);
-                }
-
-                while (!p_curr->empty()) {
-                    p_space.m_SPTQueue.insert(p_curr->pop());
-                }
-            }
-            else {
+            } else {
                 for (unsigned begin = node.childStart; begin < node.childEnd; begin++) {
                     unsigned index = m_pTreeRoots[begin].centerid;
                     p_space.m_SPTQueue.insert(NodeDistPair(begin, fComputeDistance(p_query, data[index], data.C())));
                 }
             }
         }
-    }
-
-    template <typename T>
-    void SearchTrees(const float* data, std::function<float(const T*, const T*, size_t)> fComputeDistance, COMMON::QueryResultSet<T> &p_query,
-        COMMON::WorkSpace &p_space, const int p_limits) const
-    {
         while (!p_space.m_SPTQueue.empty())
         {
             NodeDistPair bcell = p_space.m_SPTQueue.pop();

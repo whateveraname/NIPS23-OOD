@@ -70,6 +70,7 @@
         "variant": "cpp",
         "source_location": "cpp",
         "format": "cpp",
-        "semaphore": "cpp"
+        "semaphore": "cpp",
+        "valarray": "cpp"
     }
 }
