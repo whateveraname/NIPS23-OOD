@@ -188,14 +188,13 @@ struct IndexGraph {
                 unsigned* neighbors = (unsigned*)(opt_graph_ + node_size * n + data_len);
                 unsigned MaxM = *neighbors;
                 neighbors++;
-                // for (unsigned m = 0; m < MaxM; ++m)
-                //     _mm_prefetch(opt_graph_ + node_size * neighbors[m], _MM_HINT_T0);
+                for (unsigned m = 0; m < MaxM; ++m)
+                    _mm_prefetch(opt_graph_ + node_size * neighbors[m], _MM_HINT_T0);
                 for (unsigned m = 0; m < MaxM; ++m) {
                     unsigned id = neighbors[m];
                     if (flags[id])
                         continue;
                     flags[id] = 1;
-                    if (m + 1 < MaxM) _mm_prefetch(opt_graph_ + node_size * neighbors[m + 1], _MM_HINT_T0);
                     float* data = (float*)(opt_graph_ + node_size * id);
                     float dist = distance_(query, data, NULL);
                     if (dist >= retset[L - 1].distance)
