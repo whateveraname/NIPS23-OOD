@@ -78,6 +78,8 @@ struct IndexGraph {
         }
     }
 
+    ~IndexGraph() { delete[] opt_graph_ };
+
     void load_graph(const char* filename) {
         std::ifstream in(filename, std::ios::binary);
         in.ignore(4);
