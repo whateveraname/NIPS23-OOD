@@ -67,10 +67,11 @@ void build_index(const char* dataset_fn, const char* hnsw_fn, const char* ivf_fn
     alg_hnsw->save_graph(hnsw_fn);
     std::cout << "built hnsw\n";
     delete alg_hnsw;
-    IndexGraph graph(d, n);
-    graph.load_graph(hnsw_fn);
-    graph.optimizeGraph(fd);
-    graph.save(index_fn);
+    IndexGraph graph = new IndexGraph(d, n);
+    graph->load_graph(hnsw_fn);
+    graph->optimizeGraph(fd);
+    graph->save(index_fn);
+    delete graph;
     close(fd);
 }
 
