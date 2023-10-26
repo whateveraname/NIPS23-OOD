@@ -23,9 +23,7 @@ endif()
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNDEBUG -fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free")
 add_definitions (-std=c++11 -O3 -lboost -march=native -Wall -DINFO -Wno-unused-variable -Wno-unused-function -Wno-reorder)
 
-# add_executable(search cpp/search.cpp)
-# target_link_libraries(search faiss MKL::MKL)
+# add_executable(test cpp/test.cpp)
 
 add_subdirectory(pybind11)
 pybind11_add_module(graphood python/graphood.cpp)
-# target_link_libraries(graphood faiss)
