@@ -11,7 +11,9 @@ else()
     message(FATAL_ERROR "no OpenMP support")
 endif()
 
-# add_subdirectory(faiss)
+add_subdirectory(faiss)
+# include_directories(/home/yanqi/anaconda3/envs/faiss_cpu_1.7.4/include)
+# link_directories(/home/yanqi/anaconda3/envs/faiss_cpu_1.7.4/lib)
 
 # set(ENV{MKLROOT} "/opt/intel/oneapi/mkl/latest")
 # find_package(MKL CONFIG REQUIRED PATHS $ENV{MKLROOT})
@@ -24,6 +26,8 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNDEBUG -fno-builtin-malloc -fno-builti
 add_definitions (-std=c++11 -O3 -lboost -march=native -Wall -DINFO -Wno-unused-variable -Wno-unused-function -Wno-reorder)
 
 add_executable(test cpp/test.cpp)
+target_link_libraries(test faiss_avx2)
 
 add_subdirectory(pybind11)
 pybind11_add_module(graphood python/graphood.cpp)
+target_link_libraries(graphood faiss_avx2)

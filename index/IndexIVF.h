@@ -109,7 +109,7 @@ struct IndexIVF2Level {
         l2_centroids.resize(l1_cluster_num);
         represent_ids.resize(l1_cluster_num);
         std::vector<std::vector<unsigned>> l1_ivf(l1_cluster_num);
-        kmeans(n, data, l1_cluster_num, l1_ivf, l1_centroids, 2);
+        kmeans(n, data, l1_cluster_num, l1_ivf, l1_centroids, 10);
         for (size_t i = 0; i < l1_cluster_num; i++) {
             unsigned size = l1_ivf[i].size();
             l2_cluster_nums[i] = div_round_up(size, ctl_factor);
@@ -122,7 +122,7 @@ struct IndexIVF2Level {
                 }
             }
             std::vector<std::vector<unsigned>> l2_ivf(l2_cluster_nums[i]);
-            kmeans(size, tmp.data(), l2_cluster_nums[i], l2_ivf, l2_centroids[i], 2);
+            kmeans(size, tmp.data(), l2_cluster_nums[i], l2_ivf, l2_centroids[i], 10);
             for (size_t j = 0; j < l2_cluster_nums[i]; j++) {
                 unsigned closest_id;
                 float min_dist = std::numeric_limits<float>::max();
