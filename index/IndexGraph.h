@@ -69,6 +69,7 @@ struct IndexGraph {
     size_t page_num;
     std::vector<std::vector<unsigned>> final_graph_;
     DISTFUNC distance_ = utils::InverseInnerProduct;
+    HugepageAllocation alloc;
 
     IndexGraph(const size_t dimension, const size_t n): dimension_(dimension), nd_(n) {
         if (dimension == 200) {
@@ -78,7 +79,10 @@ struct IndexGraph {
         }
     }
 
-    ~IndexGraph() { delete[] opt_graph_; }
+    ~IndexGraph() { 
+        // delete[] opt_graph_; 
+        hugepage_unmap(alloc.ptr, alloc.sz);
+    }
 
     void load_graph(const char* filename) {
         std::ifstream in(filename, std::ios::binary);
@@ -134,7 +138,9 @@ struct IndexGraph {
         in.read((char*)&neighbor_len, 8);
         in.read((char*)&node_size, 8);
         in.read((char*)&page_num, 8);
-        opt_graph_ = (char*)malloc(node_size * nd_);
+        // opt_graph_ = (char*)malloc(node_size * nd_);
+        alloc = hugepage_mmap(node_size * nd_);
+        opt_graph_ = (char*)alloc.ptr;
         in.read(opt_graph_, node_size * nd_);
         in.close();
     }
