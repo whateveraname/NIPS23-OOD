@@ -224,99 +224,113 @@ struct IndexGraph {
         }
     }
 
-    void searchWithOptGraphRestart(const float* query, size_t K, unsigned L, unsigned* indices, int64_t* eps, unsigned nprobe) {
-        std::vector<Neighbor> retset(L + 1);
-        std::vector<unsigned> init_ids(L);
-        boost::dynamic_bitset<> flags{nd_, 0};
-        unsigned tmp_l = 0, start_i = 0;
+    void searchWithOptGraph1(const float* query, size_t K, unsigned L, unsigned* indices, int64_t* eps, unsigned nprobe) {
+        boost::dynamic_bitset<> visited{nd_, 0};
+        candidate_pool top_candidates;
+        candidate_pool candidate_set;
 
-        init_ids[tmp_l] = eps[tmp_l];
-        tmp_l++;
-        start_i++;
-        flags[init_ids[tmp_l]] = true;
-
-        while (tmp_l < L) {
-            unsigned id = rand() % nd_;
-            if (flags[id])
-                continue;
-            flags[id] = true;
-            init_ids[tmp_l] = id;
-            tmp_l++;
+        for (size_t i = 0; i < nprobe; i++) {
+            auto ep = eps[i];
+            float dist = distance_(query, opt_graph_ + node_size * ep, NULL);
+            top_candidates.emplace(dist, ep);
+            candidate_set.emplace(-dist, ep);
+            visited[ep] = true;
         }
 
-        for (unsigned i = 0; i < init_ids.size(); i++) {
-            unsigned id = init_ids[i];
-            if (id >= nd_)
-                continue;
-            _mm_prefetch(opt_graph_ + node_size * id, _MM_HINT_T0);
-        }
-        L = 0;
-        for (unsigned i = 0; i < init_ids.size(); i++) {
-            unsigned id = init_ids[i];
-            if (id >= nd_)
-                continue;
-            float* x = (float*)(opt_graph_ + node_size * id);
-            float dist = distance_(x, query, NULL);
-            retset[i] = Neighbor(id, dist, true);
-            flags[id] = true;
-            L++;
-        }
-
-        std::sort(retset.begin(), retset.begin() + L);
-        int k = 0;
-        while (k < (int)L && start_i < nprobe) {
-            int nk = L;
-            bool proceed = true;
-
-            if (retset[k].flag) {
-                retset[k].flag = false;
-                unsigned n = retset[k].id;
-                float lowerbound = retset[k].distance;
-
-                proceed = false;
-
-                _mm_prefetch(opt_graph_ + node_size * n + data_len, _MM_HINT_T0);
-                unsigned* neighbors = (unsigned*)(opt_graph_ + node_size * n + data_len);
-                unsigned MaxM = *neighbors;
-                neighbors++;
-                for (unsigned m = 0; m < MaxM; ++m)
-                    _mm_prefetch(opt_graph_ + node_size * neighbors[m], _MM_HINT_T0);
-                for (unsigned m = 0; m < MaxM; ++m) {
-                    unsigned id = neighbors[m];
-                    if (flags[id])
-                        continue;
-                    flags[id] = 1;
-                    float* data = (float*)(opt_graph_ + node_size * id);
-                    float dist = distance_(query, data, NULL);
-                    if (dist < lowerbound) proceed = true;
-                    if (dist >= retset[L - 1].distance)
-                        continue;
-                    Neighbor nn(id, dist, true);
-                    int r = InsertIntoPool(retset.data(), L, nn);
-
-                    if (r < nk)
-                        nk = r;
+        while (!candidate_set.empty()) {
+            auto current_node_pair = candidate_set.top();
+            candidate_set.pop();
+            if ((-current_node_pair.first) > top_candidates.top().first && top_candidates.size() == L)
+                break;
+            _mm_prefetch(opt_graph_ + node_size * current_node_pair.second + data_len, _MM_HINT_T0);
+            unsigned* neighbors = (unsigned*)(opt_graph_ + node_size * current_node_pair.second + data_len);
+            unsigned MaxM = *neighbors;
+            neighbors++;
+            for (size_t m = 0; m < MaxM; m++) {
+                _mm_prefetch(opt_graph_ + node_size * neighbors[m], _MM_HINT_T0);
+            }
+            for (size_t m = 0; m < MaxM; m++) {
+                unsigned candidate_id = neighbors[m];
+                if (visited[candidate_id])
+                    continue;
+                visited[candidate_id] = true;
+                float dist = distance_(query, opt_graph_ + node_size * candidate_id, NULL);
+                if (top_candidates.size() < L || top_candidates.top().first > dist) {
+                    candidate_set.emplace(-dist, candidate_id);
+                    top_candidates.emplace(dist, candidate_id);
+                    if (top_candidates.size() > L)
+                        top_candidates.pop();
                 }
             }
-            if (nk <= k)
-                k = nk;
-            else
-                ++k;
-            if (!proceed) {
-                for (size_t m = 0; m < L + 1; m++) {
-                    retset[m].flag = false;
-                }
-                unsigned id;
-                while (start_i < nprobe && flags[id = eps[start_i++]]) {}
-                if (start_i == nprobe && flags[eps[nprobe - 1]]) break;
-                flags[id] = 1;
-                float* data = (float*)(opt_graph_ + node_size * id);
-                float dist = distance_(query, data, NULL);
-                k = InsertIntoPool(retset.data(), L, Neighbor(id, dist, true));
-            }
+        }
+        while (top_candidates.size() > K) {
+            top_candidates.pop();
         }
         for (size_t i = 0; i < K; i++) {
-            indices[i] = retset[i].id;
+            indices[i] = top_candidates.top().second;
+            top_candidates.pop();
+        }
+    }
+
+    void searchWithOptGraphRestart(const float* query, size_t K, unsigned L, unsigned* indices, int64_t* eps, unsigned nprobe) {
+        boost::dynamic_bitset<> visited{nd_, 0};
+        candidate_pool top_candidates;
+        candidate_pool candidate_set;
+
+        unsigned start_i = nprobe;
+
+        auto ep = eps[start_i--];
+        float dist = distance_(query, opt_graph_ + node_size * ep, NULL);
+        top_candidates.emplace(dist, ep);
+        candidate_set.emplace(-dist, ep);
+        visited[ep] = true;
+
+        while (!candidate_set.empty() && start_i >= 0) {
+            auto current_node_pair = candidate_set.top();
+            candidate_set.pop();
+            if ((-current_node_pair.first) > top_candidates.top().first && top_candidates.size() == L)
+                break;
+            _mm_prefetch(opt_graph_ + node_size * current_node_pair.second + data_len, _MM_HINT_T0);
+            unsigned* neighbors = (unsigned*)(opt_graph_ + node_size * current_node_pair.second + data_len);
+            unsigned MaxM = *neighbors;
+            neighbors++;
+            for (size_t m = 0; m < MaxM; m++) {
+                _mm_prefetch(opt_graph_ + node_size * neighbors[m], _MM_HINT_T0);
+            }
+            bool proceed = false;
+            for (size_t m = 0; m < MaxM; m++) {
+                unsigned candidate_id = neighbors[m];
+                if (visited[candidate_id])
+                    continue;
+                visited[candidate_id] = true;
+                float dist = distance_(query, opt_graph_ + node_size * candidate_id, NULL);
+                if (dist < -current_node_pair.first) proceed = true;
+                if (top_candidates.size() < L || top_candidates.top().first > dist) {
+                    candidate_set.emplace(-dist, candidate_id);
+                    top_candidates.emplace(dist, candidate_id);
+                    if (top_candidates.size() > L)
+                        top_candidates.pop();
+                }
+            }
+            if (!proceed) {
+                candidate_set = candidate_pool();
+                unsigned ep;
+                while (start_i >= 0 && visited[eps[start_i]]) start_i--;
+                if (start_i >= nprobe) {
+                    candidate_set.emplace(-distance_(query, opt_graph_ + node_size * eps[start_i], NULL), eps[start_i]);
+                    start_i--;
+                } else {
+                    break;
+                }
+            }
+        }
+
+        while (top_candidates.size() > K) {
+            top_candidates.pop();
+        }
+        for (size_t i = 0; i < K; i++) {
+            indices[i] = top_candidates.top().second;
+            top_candidates.pop();
         }
     }
 };
