@@ -767,6 +767,9 @@ struct SimilarityIP<8> {
 template <class Quantizer, class Similarity, int SIMDWIDTH>
 struct DCTemplate : SQDistanceComputer {};
 
+template <class Quantizer, class Similarity, int SIMDWIDTH>
+struct DCTemplateDim200 : SQDistanceComputer {};
+
 template <class Quantizer, class Similarity>
 struct DCTemplate<Quantizer, Similarity, 1> : SQDistanceComputer {
     using Sim = Similarity;
@@ -811,6 +814,109 @@ struct DCTemplate<Quantizer, Similarity, 1> : SQDistanceComputer {
         return compute_distance(q, code);
     }
 };
+
+template <class Quantizer, class Similarity>
+struct DCTemplateDim200<Quantizer, Similarity, 1> : SQDistanceComputer {
+    using Sim = Similarity;
+
+    Quantizer quant;
+
+    DCTemplateDim200(size_t d, const std::vector<float>& trained)
+            : quant(d, trained) {}
+
+    float compute_distance(const float* x, const uint8_t* code) const {
+        Similarity sim(x);
+        sim.begin();
+        for (size_t i = 0; i < quant.d; i++) {
+            float xi = quant.reconstruct_component(code, i);
+            sim.add_component(xi);
+        }
+        return sim.result();
+    }
+
+    float compute_code_distance(const uint8_t* code1, const uint8_t* code2)
+            const {
+        Similarity sim(nullptr);
+        sim.begin();
+        for (size_t i = 0; i < quant.d; i++) {
+            float x1 = quant.reconstruct_component(code1, i);
+            float x2 = quant.reconstruct_component(code2, i);
+            sim.add_component_2(x1, x2);
+        }
+        return sim.result();
+    }
+
+    void set_query(const float* x) final {
+        q = x;
+    }
+
+    float symmetric_dis(idx_t i, idx_t j) override {
+        return compute_code_distance(
+                codes + i * code_size, codes + j * code_size);
+    }
+
+    float query_to_code(const uint8_t* code) const final {
+        return compute_distance(q, code);
+    }
+};
+
+#ifdef USE_F16C
+
+template <class Quantizer, class Similarity>
+struct DCTemplateDim200<Quantizer, Similarity, 8> : SQDistanceComputer {
+    using Sim = Similarity;
+
+    Quantizer quant;
+
+    DCTemplateDim200(size_t d, const std::vector<float>& trained)
+            : quant(d, trained) {}
+
+    float compute_distance(const float* x, const uint8_t* code) const {
+
+        __m512 sum512 = _mm512_setzero_ps();
+        for (size_t i = 0; i < 200; i += 16) {
+            __m256i codei = _mm256_loadu_si256((const __m256i*)(code + 2*i));
+            __m512 code512 = _mm512_cvtph_ps(codei);
+            __m512 q512 = _mm512_loadu_ps(x+i);
+            sum512 = _mm512_fmadd_ps(code512, q512, sum512);
+        }
+        __m256 sum256 = _mm256_add_ps(_mm512_castps512_ps256(sum512), _mm512_extractf32x8_ps(sum512, 1));
+        __m128i c128i = _mm_loadu_si128((const __m128i*)(code+384));
+        __m256 c256 = _mm256_cvtph_ps(c128i);
+        __m256 q256 = _mm256_loadu_ps(x+192);
+        sum256 = _mm256_fmadd_ps(c256, q256, sum256);
+        sum256 = _mm256_hadd_ps(sum256, sum256);
+        sum256 = _mm256_hadd_ps(sum256, sum256);
+        return _mm_cvtss_f32(_mm256_castps256_ps128(sum256)) + _mm_cvtss_f32(_mm256_extractf128_ps(sum256, 1));
+    }
+
+    float compute_code_distance(const uint8_t* code1, const uint8_t* code2)
+            const {
+        Similarity sim(nullptr);
+        sim.begin_8();
+        for (size_t i = 0; i < quant.d; i += 8) {
+            __m256 x1 = quant.reconstruct_8_components(code1, i);
+            __m256 x2 = quant.reconstruct_8_components(code2, i);
+            sim.add_8_components_2(x1, x2);
+        }
+        return sim.result_8();
+    }
+
+    void set_query(const float* x) final {
+        q = x;
+    }
+
+    float symmetric_dis(idx_t i, idx_t j) override {
+        return compute_code_distance(
+                codes + i * code_size, codes + j * code_size);
+    }
+
+    float query_to_code(const uint8_t* code) const final {
+        return compute_distance(q, code);
+    }
+};
+
+#endif
 
 #ifdef USE_F16C
 
@@ -988,6 +1094,9 @@ SQDistanceComputer* select_distance_computer(
         size_t d,
         const std::vector<float>& trained) {
     constexpr int SIMDWIDTH = Sim::simdwidth;
+    // if (d == 200) {
+    //     return new DCTemplateDim200<QuantizerFP16<SIMDWIDTH>, Sim, SIMDWIDTH>(d, trained);
+    // }
     switch (qtype) {
         case ScalarQuantizer::QT_8bit_uniform:
             return new DCTemplate<

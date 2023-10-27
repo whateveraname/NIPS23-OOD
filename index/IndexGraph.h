@@ -338,9 +338,15 @@ struct IndexGraph {
 };
 
 struct IndexGraphSQ {
+    using DISTFUNC = float (*)(const void*, const void*, const void*);
+
     size_t nd_;
+    size_t dimension_;
     unsigned neighbor_len;
     std::vector<unsigned> graph_;
+    uint8_t* codes_;
+    size_t code_size_;
+    DISTFUNC dist_;
 
     IndexGraphSQ(const size_t n): nd_(n) {}
 
@@ -365,7 +371,14 @@ struct IndexGraphSQ {
         in.close();
     }
 
-    void searchWithOptGraph(faiss::FlatCodesDistanceComputer& dis, size_t K, unsigned L, unsigned* indices, int64_t* eps, unsigned nprobe) {
+    void set_storage(size_t d, uint8_t* codes, size_t code_size) {
+        dimension_ = d;
+        codes_ = codes;
+        code_size_ = code_size;
+        dist_ = (d == 200 ? utils::InnerProductFloatAVX512HpDim200 : utils::InnerProductFloatAVX512Hp);
+    }
+
+    void searchWithOptGraph(float* query, size_t K, unsigned L, unsigned* indices, int64_t* eps, unsigned nprobe) {
         std::vector<Neighbor> retset(L + 1);
         std::vector<unsigned> init_ids(L);
         boost::dynamic_bitset<> flags{nd_, 0};
@@ -389,14 +402,14 @@ struct IndexGraphSQ {
             unsigned id = init_ids[i];
             if (id >= nd_)
                 continue;
-            _mm_prefetch(dis.codes + dis.code_size * id, _MM_HINT_T0);
+            _mm_prefetch(codes_ + code_size_ * id, _MM_HINT_T0);
         }
         L = 0;
         for (unsigned i = 0; i < init_ids.size(); i++) {
             unsigned id = init_ids[i];
             if (id >= nd_)
                 continue;
-            float dist = -dis(id);
+            float dist = dist_(query, codes_ + code_size_ * id, &dimension_);
             retset[i] = Neighbor(id, dist, true);
             flags[id] = true;
             L++;
@@ -416,13 +429,13 @@ struct IndexGraphSQ {
                 unsigned MaxM = *neighbors;
                 neighbors++;
                 for (unsigned m = 0; m < MaxM; ++m)
-                    _mm_prefetch(dis.codes + dis.code_size * neighbors[m], _MM_HINT_T0);
+                    _mm_prefetch(codes_ + code_size_ * neighbors[m], _MM_HINT_T0);
                 for (unsigned m = 0; m < MaxM; ++m) {
                     unsigned id = neighbors[m];
                     if (flags[id])
                         continue;
                     flags[id] = 1;
-                    float dist = -dis(id);
+                    float dist = dist_(query, codes_ + code_size_ * id, &dimension_);
                     if (dist >= retset[L - 1].distance)
                         continue;
                     Neighbor nn(id, dist, true);

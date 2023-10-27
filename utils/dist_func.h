@@ -210,20 +210,6 @@ static float InnerProductFloatAVX512(const void *pVec1v, const void *pVec2v, con
         sum128 = _mm_fmadd_ps(x128, y128, sum128);
     }
     return -HsumFloat128(sum128);
-
-    // float *pVec1 = (float *) pVec1v;
-    // float *pVec2 = (float *) pVec2v;
-    // auto sum = _mm512_setzero_ps();
-    // constexpr uint16_t one{0x1};
-    // constexpr uint16_t shift = 200 % 16;
-    // constexpr uint16_t mask = shift == 0 ? std::numeric_limits<uint16_t>::max() : (one << shift) - one;
-    // constexpr uint16_t all = std::numeric_limits<uint16_t>::max();
-    // for (size_t j = 0; j < 200; j += 16) {
-    //     auto va = _mm512_maskz_loadu_ps(j == 192 ? mask : all, pVec1 + j);
-    //     auto vb = _mm512_maskz_loadu_ps(j == 192 ? mask : all, pVec2 + j);
-    //     sum = _mm512_fmadd_ps(va, vb, sum);
-    // }
-    // return _mm512_reduce_add_ps(sum);
 }
 
 static float InnerProductFloatAVX512Dim20(const void *pVec1v, const void *pVec2v, const void *dim_ptr) {
@@ -265,6 +251,90 @@ static float InnerProductFloatAVX512Dim20(const void *pVec1v, const void *pVec2v
         sum128 = _mm_fmadd_ps(x128, y128, sum128);
     }
     return -HsumFloat128(sum128);
+}
+
+static float InnerProductFloatAVX512Hp(const void *pVec1v, const void *pVec2v, const void *dim_ptr) {
+    float* pVec1 = (float*) pVec1v;
+    uint8_t* pVec2 = (uint8_t*) pVec2v;
+    std::size_t dim = *((std::size_t *) dim_ptr);
+
+    __m512 x512, y512, diff512;
+    __m512 sum512 = _mm512_setzero_ps();
+
+    while (dim >= 16) {
+        x512 = _mm512_loadu_ps(pVec1); pVec1 += 16;
+        y512 = _mm512_cvtph_ps(_mm256_loadu_si256((const __m256i*)pVec2)); pVec2 += 32;
+        sum512 = _mm512_fmadd_ps(x512, y512, sum512);
+        dim -= 16;
+    }
+    __m256 sum256 = _mm256_add_ps(_mm512_castps512_ps256(sum512), _mm512_extractf32x8_ps(sum512, 1));
+
+    if (dim>=8){
+        __m256 x256 = _mm256_loadu_ps(pVec1); pVec1 += 8;
+        __m256 y256 = _mm256_cvtph_ps(_mm_loadu_si128((const __m128i*)pVec2)); pVec2 += 16;
+        sum256 = _mm256_fmadd_ps(x256, y256, sum256);
+        dim -= 8;
+    }
+    __m128 sum128 = _mm_add_ps(_mm256_castps256_ps128(sum256), _mm256_extractf128_ps(sum256, 1));
+    __m128 x128, y128;
+
+    // if (dim >= 4) {
+    //     x128 = _mm_loadu_ps(pVec1); pVec1 += 4;
+    //     y128 = _mm_cvtph_ps(_mm_loadu_si((const __m128i*)pVec2)); pVec2 += 8;
+    //     sum128 = _mm_fmadd_ps(x128, y128, sum128);
+    //     dim -= 4;
+    // }
+
+    // if (dim > 0) {
+    //     x128 = MaskedReadFloat(dim, pVec1);
+    //     y128 = MaskedReadFloat(dim, pVec2);
+    //     sum128 = _mm_fmadd_ps(x128, y128, sum128);
+    // }
+    return -HsumFloat128(sum128);
+}
+
+static float InnerProductFloatAVX512HpDim200(const void *pVec1v, const void *pVec2v, const void *dim_ptr) {
+    float *x = (float *) pVec1v;
+    uint8_t *code = (uint8_t *) pVec2v;
+    __m512 sum512 = _mm512_setzero_ps();
+    for (size_t i = 0; i < 192; i += 16) {
+        __m256i codei = _mm256_loadu_si256((const __m256i*)(code + 2*i));
+        __m512 code512 = _mm512_cvtph_ps(codei);
+        __m512 q512 = _mm512_loadu_ps(x+i);
+        sum512 = _mm512_fmadd_ps(code512, q512, sum512);
+    }
+    __m256 sum256 = _mm256_add_ps(_mm512_castps512_ps256(sum512), _mm512_extractf32x8_ps(sum512, 1));
+    __m128i c128i = _mm_loadu_si128((const __m128i*)(code+384));
+    __m256 c256 = _mm256_cvtph_ps(c128i);
+    __m256 q256 = _mm256_loadu_ps(x+192);
+    sum256 = _mm256_fmadd_ps(c256, q256, sum256);
+    __m256 sum = _mm256_hadd_ps(sum256, sum256);
+    __m256 sum2 = _mm256_hadd_ps(sum, sum);
+    return -_mm_cvtss_f32(_mm256_castps256_ps128(sum2)) - _mm_cvtss_f32(_mm256_extractf128_ps(sum2, 1));
+
+    // __m512 sum512_1 = _mm512_setzero_ps();
+    // __m512 sum512_2 = _mm512_setzero_ps();
+    // for (size_t i = 0; i < 192; i += 32) {
+    //     // __m256i codei = _mm256_loadu_si256((const __m256i*)(code + 2*i));
+    //     __m512i code512i = _mm512_loadu_si512((const __m512i*)(code + 2*i));
+    //     __m256i codei1 = _mm512_castsi512_si256(code512i);
+    //     __m256i codei2 = _mm512_extracti32x8_epi32(code512i, 1);
+    //     __m512 code512_1 = _mm512_cvtph_ps(codei1);
+    //     __m512 code512_2 = _mm512_cvtph_ps(codei2);
+    //     __m512 q512_1 = _mm512_loadu_ps(x+i);
+    //     __m512 q512_2 = _mm512_loadu_ps(x+i+16);
+    //     sum512_1 = _mm512_fmadd_ps(code512_1, q512_1, sum512_1);
+    //     sum512_2 = _mm512_fmadd_ps(code512_2, q512_2, sum512_2);
+    // }
+    // sum512_1 = _mm512_add_ps(sum512_1, sum512_2);
+    // __m256 sum256 = _mm256_add_ps(_mm512_castps512_ps256(sum512_1), _mm512_extractf32x8_ps(sum512_1, 1));
+    // __m128i c128i = _mm_loadu_si128((const __m128i*)(code+384));
+    // __m256 c256 = _mm256_cvtph_ps(c128i);
+    // __m256 q256 = _mm256_loadu_ps(x+192);
+    // sum256 = _mm256_fmadd_ps(c256, q256, sum256);
+    // sum256 = _mm256_hadd_ps(sum256, sum256);
+    // sum256 = _mm256_hadd_ps(sum256, sum256);
+    // return -_mm_cvtss_f32(_mm256_castps256_ps128(sum256)) - _mm_cvtss_f32(_mm256_extractf128_ps(sum256, 1));
 }
 #endif // USE_AVX512
 

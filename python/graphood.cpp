@@ -21,6 +21,7 @@ public:
         graph->load_graph(hnsw_fn);
         sq = faiss::read_index(sq_fn);
         ivf.load(ivf_fn);
+        graph->set_storage(d, ((faiss::IndexScalarQuantizer*)sq)->codes.data(), ((faiss::IndexScalarQuantizer*)sq)->sq.code_size);
     }
 
     py::array_t<unsigned> batch_search(unsigned nq, py::array_t<float> query_, unsigned k, unsigned ef, unsigned nprobe) {
@@ -35,15 +36,9 @@ public:
         timer.tick();
         ivf.search(query, nq, labels, nprobe);
         timer.tuck("");
-#pragma omp parallel
-        {
-            faiss::FlatCodesDistanceComputer* dis = ((faiss::IndexScalarQuantizer*)sq)->get_FlatCodesDistanceComputer();
-            faiss::ScopeDeleter1<faiss::DistanceComputer> del(dis);
-#pragma omp for
-            for (size_t i = 0; i < nq; i++) {
-                dis->set_query(query + i * d);
-                graph->searchWithOptGraph(*dis, k, ef, I + i * k, labels.data() + i * nprobe, nprobe);
-            }
+#pragma omp parallel for
+        for (size_t i = 0; i < nq; i++) {
+            graph->searchWithOptGraph(query + i * d, k, ef, I + i * k, labels.data() + i * nprobe, nprobe);
         }
         timer.tuck("");
         py_I.resize({nq, k});
