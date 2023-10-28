@@ -109,28 +109,31 @@ struct IndexIVF2Level {
         l2_centroids.resize(l1_cluster_num);
         represent_ids.resize(l1_cluster_num);
         std::vector<std::vector<unsigned>> l1_ivf(l1_cluster_num);
-        kmeans(n, data, l1_cluster_num, l1_ivf, l1_centroids, 10);
+        kmeans(n, data, l1_cluster_num, l1_ivf, l1_centroids, 20);
         for (size_t i = 0; i < l1_cluster_num; i++) {
             unsigned size = l1_ivf[i].size();
             l2_cluster_nums[i] = div_round_up(size, ctl_factor);
             l2_centroids[i] = std::vector<std::vector<float>>(l2_cluster_nums[i], std::vector<float>(d));
             represent_ids[i].resize(l2_cluster_nums[i]);
             std::vector<float> tmp(size * d);
+            std::vector<unsigned> id_map(size);
             for (size_t j = 0; j < size; j++) {
+                id_map[j] = l1_ivf[i][j];
                 for (size_t k = 0; k < d; k++) {
                     tmp[j * d + k] = data[l1_ivf[i][j] * d + k];
                 }
             }
             std::vector<std::vector<unsigned>> l2_ivf(l2_cluster_nums[i]);
-            kmeans(size, tmp.data(), l2_cluster_nums[i], l2_ivf, l2_centroids[i], 10);
+            kmeans(size, tmp.data(), l2_cluster_nums[i], l2_ivf, l2_centroids[i], 20);
             for (size_t j = 0; j < l2_cluster_nums[i]; j++) {
-                unsigned closest_id;
+                unsigned closest_id = -1;
                 float min_dist = std::numeric_limits<float>::max();
                 for (size_t k = 0; k < l2_ivf[j].size(); k++) {
-                    float dist = dist_(l2_centroids[i][j].data(), data + l2_ivf[j][k] * d, &d);
+                    unsigned id = id_map[l2_ivf[j][k]];
+                    float dist = dist_(l2_centroids[i][j].data(), data + id * d, &d);
                     if (dist < min_dist) {
                         min_dist = dist;
-                        closest_id = l2_ivf[j][k];
+                        closest_id = id;
                     }
                 }
                 represent_ids[i][j] = closest_id;

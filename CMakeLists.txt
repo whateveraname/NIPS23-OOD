@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 2.8)
 
 project(final)
 
+set(CMAKE_BUILD_TYPE Release)
+
 #OpenMP
 find_package(OpenMP)
 if (OPENMP_FOUND)
@@ -12,15 +14,6 @@ else()
 endif()
 
 add_subdirectory(faiss)
-# include_directories(/home/yanqi/anaconda3/envs/faiss_cpu_1.7.4/include)
-# link_directories(/home/yanqi/anaconda3/envs/faiss_cpu_1.7.4/lib)
-
-# set(ENV{MKLROOT} "/opt/intel/oneapi/mkl/latest")
-# find_package(MKL CONFIG REQUIRED PATHS $ENV{MKLROOT})
-# message(STATUS "${MKL_IMPORTED_TARGETS}")
-
-# add_compile_options(-fsanitize=address) 
-# add_link_options(-fsanitize=address)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNDEBUG -fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free")
 add_definitions (-std=c++11 -O3 -lboost -march=native -Wall -DINFO -Wno-unused-variable -Wno-unused-function -Wno-reorder)

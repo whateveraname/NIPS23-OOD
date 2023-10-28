@@ -298,7 +298,8 @@ static float InnerProductFloatAVX512HpDim200(const void *pVec1v, const void *pVe
     uint8_t *code = (uint8_t *) pVec2v;
     __m512 sum512 = _mm512_setzero_ps();
     for (size_t i = 0; i < 192; i += 16) {
-        __m256i codei = _mm256_loadu_si256((const __m256i*)(code + 2*i));
+        // __m256i codei = _mm256_loadu_si256((const __m256i*)(code + 2*i));
+        __m256i codei = _mm256_lddqu_si256((const __m256i*)(code + 2*i));
         __m512 code512 = _mm512_cvtph_ps(codei);
         __m512 q512 = _mm512_loadu_ps(x+i);
         sum512 = _mm512_fmadd_ps(code512, q512, sum512);
@@ -311,30 +312,6 @@ static float InnerProductFloatAVX512HpDim200(const void *pVec1v, const void *pVe
     __m256 sum = _mm256_hadd_ps(sum256, sum256);
     __m256 sum2 = _mm256_hadd_ps(sum, sum);
     return -_mm_cvtss_f32(_mm256_castps256_ps128(sum2)) - _mm_cvtss_f32(_mm256_extractf128_ps(sum2, 1));
-
-    // __m512 sum512_1 = _mm512_setzero_ps();
-    // __m512 sum512_2 = _mm512_setzero_ps();
-    // for (size_t i = 0; i < 192; i += 32) {
-    //     // __m256i codei = _mm256_loadu_si256((const __m256i*)(code + 2*i));
-    //     __m512i code512i = _mm512_loadu_si512((const __m512i*)(code + 2*i));
-    //     __m256i codei1 = _mm512_castsi512_si256(code512i);
-    //     __m256i codei2 = _mm512_extracti32x8_epi32(code512i, 1);
-    //     __m512 code512_1 = _mm512_cvtph_ps(codei1);
-    //     __m512 code512_2 = _mm512_cvtph_ps(codei2);
-    //     __m512 q512_1 = _mm512_loadu_ps(x+i);
-    //     __m512 q512_2 = _mm512_loadu_ps(x+i+16);
-    //     sum512_1 = _mm512_fmadd_ps(code512_1, q512_1, sum512_1);
-    //     sum512_2 = _mm512_fmadd_ps(code512_2, q512_2, sum512_2);
-    // }
-    // sum512_1 = _mm512_add_ps(sum512_1, sum512_2);
-    // __m256 sum256 = _mm256_add_ps(_mm512_castps512_ps256(sum512_1), _mm512_extractf32x8_ps(sum512_1, 1));
-    // __m128i c128i = _mm_loadu_si128((const __m128i*)(code+384));
-    // __m256 c256 = _mm256_cvtph_ps(c128i);
-    // __m256 q256 = _mm256_loadu_ps(x+192);
-    // sum256 = _mm256_fmadd_ps(c256, q256, sum256);
-    // sum256 = _mm256_hadd_ps(sum256, sum256);
-    // sum256 = _mm256_hadd_ps(sum256, sum256);
-    // return -_mm_cvtss_f32(_mm256_castps256_ps128(sum256)) - _mm_cvtss_f32(_mm256_extractf128_ps(sum256, 1));
 }
 #endif // USE_AVX512
 

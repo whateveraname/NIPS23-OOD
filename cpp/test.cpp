@@ -44,12 +44,12 @@ private:
 
 void build_index(const char* dataset_fn, const char* hnsw_fn, const char* ivf_fn, const char* index_fn, const char* sq_fn, unsigned M, unsigned ef, unsigned cluster_num) {
     int fd = open(dataset_fn, O_RDONLY);
-    unsigned n, d;
+    unsigned n, d, nq;
     auto data = read_fbin<float>(dataset_fn, n, d);
     IndexIVF2Level index(cluster_num);
     index.add(n, d, data);
     index.save(ivf_fn);
-    auto sq = faiss::index_factory(d, "SQ8", faiss::METRIC_INNER_PRODUCT);
+    auto sq = faiss::index_factory(d, "SQfp16", faiss::METRIC_INNER_PRODUCT);
     sq->train(n, data);
     sq->add(n, data);
     faiss::write_index(sq, sq_fn);
@@ -64,7 +64,7 @@ int main() {
     unsigned nq, d, k;
     float* query = read_fbin<float>("/home/yuxiang/NeurIPS23/big-ann-benchmarks-main/data/text2image1B/query.public.100K.fbin", nq, d);
     unsigned* gt = read_fbin<unsigned>("/home/yuxiang/NeurIPS23/big-ann-benchmarks-main/data/text2image1B/text2image-10M", nq, k);
-    auto I = index.batch_search(100000, query, 10, 140, 30);
+    auto I = index.batch_search(100000, query, 10, 136, 30);
     float optrecall = 0;
     for (size_t i = 0; i < nq; i++) {
         float num = 0;
