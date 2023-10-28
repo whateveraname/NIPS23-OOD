@@ -31,6 +31,16 @@ public:
         for (size_t i = 0; i < nq; i++) {
             graph->searchWithOptGraph(query + i * d, k, ef, I + i * k, labels.data() + i * nprobe, nprobe);
         }
+// #pragma omp parallel
+//         {
+//             faiss::FlatCodesDistanceComputer* dis = ((faiss::IndexScalarQuantizer*)sq)->get_FlatCodesDistanceComputer();
+//             faiss::ScopeDeleter1<faiss::DistanceComputer> del(dis);
+// #pragma omp for
+//             for (size_t i = 0; i < nq; i++) {
+//                 dis->set_query(query + i * d);
+//                 graph->searchWithOptGraph(*dis, k, ef, I + i * k, labels.data() + i * nprobe, nprobe);
+//             }
+//         }
         timer.tuck("");
         return I;
     }

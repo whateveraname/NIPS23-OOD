@@ -25,7 +25,7 @@ public:
     }
 
     py::array_t<unsigned> batch_search(unsigned nq, py::array_t<float> query_, unsigned k, unsigned ef, unsigned nprobe) {
-        omp_set_num_threads(8);
+        // omp_set_num_threads(8);
         py::buffer_info buf_info = query_.request();
         float* query = (float*)buf_info.ptr;
         auto py_I = py::array_t<unsigned>(nq * k);

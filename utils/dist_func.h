@@ -309,9 +309,9 @@ static float InnerProductFloatAVX512HpDim200(const void *pVec1v, const void *pVe
     __m256 c256 = _mm256_cvtph_ps(c128i);
     __m256 q256 = _mm256_loadu_ps(x+192);
     sum256 = _mm256_fmadd_ps(c256, q256, sum256);
-    __m256 sum = _mm256_hadd_ps(sum256, sum256);
-    __m256 sum2 = _mm256_hadd_ps(sum, sum);
-    return -_mm_cvtss_f32(_mm256_castps256_ps128(sum2)) - _mm_cvtss_f32(_mm256_extractf128_ps(sum2, 1));
+    sum256 = _mm256_hadd_ps(sum256, sum256);
+    sum256 = _mm256_hadd_ps(sum256, sum256);
+    return -_mm_cvtss_f32(_mm256_castps256_ps128(sum256)) - _mm_cvtss_f32(_mm256_extractf128_ps(sum256, 1));
 }
 #endif // USE_AVX512
 

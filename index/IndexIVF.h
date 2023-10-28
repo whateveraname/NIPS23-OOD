@@ -76,7 +76,7 @@ struct IndexIVF2Level {
 
     void search(float* query, unsigned nq, std::vector<int64_t>& eps, unsigned nprobe) {
         auto dfunc = (d == 200 ? utils::InnerProductFloatAVX512 : utils::InnerProductFloatAVX512Dim20);
-#pragma omp parallel for num_threads(8)
+#pragma omp parallel for
         for (size_t i = 0; i < nq; i++) {
             std::priority_queue<std::pair<float, unsigned>> queue;
             std::vector<std::pair<float, unsigned>> result;
